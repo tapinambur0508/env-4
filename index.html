@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Моніторинг довкілля — Пост №8, Київ</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2236;
+      --border: #1e2d45;
+      --accent: #00d4aa;
+      --accent2: #ff6b35;
+      --accent3: #7c6fff;
+      --warn: #ffd166;
+      --danger: #ef4565;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --grid: rgba(0, 212, 170, 0.04);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── animated grid bg ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* ── header ── */
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-left {}
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 212, 170, 0.1);
+      border: 1px solid rgba(0, 212, 170, 0.3);
+      color: var(--accent);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .tag::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1)
+      }
+
+      50% {
+        opacity: .4;
+        transform: scale(1.4)
+      }
+    }
+
+    h1 {
+      font-size: clamp(20px, 3vw, 32px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .station-info {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .station-info .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .station-info .val {
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .station-info .url {
+      font-size: 11px;
+      color: var(--accent);
+      font-family: 'IBM Plex Mono', monospace;
+      margin-top: 4px;
+    }
+
+    /* ── KPI row ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .2s, border-color .2s;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent3);
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--card-accent, var(--accent));
+    }
+
+    .kpi-card .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .kpi-card .kpi-value {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1;
+      margin: 10px 0 4px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--card-accent, var(--accent));
+    }
+
+    .kpi-card .kpi-unit {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .kpi-card .kpi-status {
+      font-size: 11px;
+      margin-top: 10px;
+      font-weight: 600;
+    }
+
+    .kpi-card .kpi-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 10px;
+    }
+
+    .kpi-card .kpi-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--card-accent, var(--accent));
+      transition: width 1s ease;
+    }
+
+    .status-ok {
+      color: #4ade80;
+    }
+
+    .status-warn {
+      color: var(--warn);
+    }
+
+    .status-danger {
+      color: var(--danger);
+    }
+
+    /* ── charts grid ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media(max-width:900px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .chart-title span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media(max-width:1100px) {
+      .bottom-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media(max-width:700px) {
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── table ── */
+    .table-card {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 8px 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: var(--surface2);
+    }
+
+    tbody td {
+      padding: 10px 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-ok {
+      background: rgba(74, 222, 128, .15);
+      color: #4ade80;
+    }
+
+    .badge-warn {
+      background: rgba(255, 209, 102, .15);
+      color: var(--warn);
+    }
+
+    /* ── forecast ── */
+    .forecast-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .forecast-date {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      width: 50px;
+    }
+
+    .forecast-bar-wrap {
+      flex: 1;
+      background: var(--border);
+      border-radius: 3px;
+      height: 6px;
+    }
+
+    .forecast-bar-inner {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent3), var(--accent));
+    }
+
+    .forecast-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      width: 50px;
+      text-align: right;
+    }
+
+    /* ── trend indicator ── */
+    .trend {
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .trend-up {
+      color: var(--danger);
+    }
+
+    .trend-down {
+      color: #4ade80;
+    }
+
+    footer {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- HEADER -->
+    <header>
+      <div class="header-left">
+        <div class="tag">● LIVE MONITORING</div>
+        <h1>Якість повітря<br><span>Голосіївський район</span></h1>
+        <div class="subtitle">Пост №8 · проспект Академіка Глушкова, 2К12 · Київ</div>
+      </div>
+      <div class="header-right">
+        <div class="station-info">
+          <div class="label">Суб'єкт моніторингу</div>
+          <div class="val">Департамент захисту довкілля КМДА</div>
+          <div class="label" style="margin-top:8px">Джерело даних</div>
+          <div class="url">ecozagroza.gov.ua</div>
+          <div class="label" style="margin-top:8px">Останнє вимірювання</div>
+          <div class="val">20.02.2026 · 10:00</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--card-accent:#00d4aa">
+        <div class="kpi-label">PM2.5</div>
+        <div class="kpi-value">21.52</div>
+        <div class="kpi-unit">мкг/м³</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:86%"></div>
+        </div>
+        <div class="kpi-status status-warn">⚠ Наближається до межі ВООЗ (25)</div>
+      </div>
+      <div class="kpi-card" style="--card-accent:#7c6fff">
+        <div class="kpi-label">PM10</div>
+        <div class="kpi-value">22.38</div>
+        <div class="kpi-unit">мкг/м³</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:45%"></div>
+        </div>
+        <div class="kpi-status status-ok">✓ В нормі (ГДК: 50)</div>
+      </div>
+      <div class="kpi-card" style="--card-accent:#06b6d4">
+        <div class="kpi-label">Вологість</div>
+        <div class="kpi-value">90</div>
+        <div class="kpi-unit">%</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:90%"></div>
+        </div>
+        <div class="kpi-status status-warn">⚠ Висока вологість</div>
+      </div>
+      <div class="kpi-card" style="--card-accent:#f59e0b">
+        <div class="kpi-label">Атм. тиск</div>
+        <div class="kpi-value">773</div>
+        <div class="kpi-unit">мм.рт.ст.</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:72%"></div>
+        </div>
+        <div class="kpi-status status-ok">✓ Нормальний тиск</div>
+      </div>
+      <div class="kpi-card" style="--card-accent:#60a5fa">
+        <div class="kpi-label">Температура</div>
+        <div class="kpi-value">-22.3</div>
+        <div class="kpi-unit">°C</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:30%"></div>
+        </div>
+        <div class="kpi-status status-ok">✓ Зимова норма</div>
+      </div>
+      <div class="kpi-card" style="--card-accent:#4ade80">
+        <div class="kpi-label">NO₂ / SO₂</div>
+        <div class="kpi-value">0</div>
+        <div class="kpi-unit">мкг/м³</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:1%"></div>
+        </div>
+        <div class="kpi-status status-ok">✓ Не зафіксовано</div>
+      </div>
+    </div>
+
+    <!-- MAIN CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title"><span style="background:#00d4aa"></span>Динаміка PM2.5 та PM10 (14–20 лютого 2026)
+        </div>
+        <canvas id="dustChart" height="90"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><span style="background:#7c6fff"></span>PM2.5 відносно норми ВООЗ</div>
+        <canvas id="gaugeChart" height="90"></canvas>
+      </div>
+    </div>
+
+    <!-- BOTTOM CHARTS -->
+    <div class="bottom-grid">
+      <div class="chart-card">
+        <div class="chart-title"><span style="background:#06b6d4"></span>Вологість та тиск</div>
+        <canvas id="meteoChart" height="120"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><span style="background:#60a5fa"></span>Температура °C</div>
+        <canvas id="tempChart" height="120"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><span style="background:#f59e0b"></span>Прогноз PM2.5 (ковзне середнє)</div>
+        <div id="forecastList"></div>
+      </div>
+    </div>
+
+    <!-- DATA TABLE -->
+    <div style="margin-top:16px">
+      <div class="table-card">
+        <div class="chart-title" style="margin-bottom:16px"><span style="background:#00d4aa"></span>Журнал вимірювань —
+          Лютий 2026</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Час</th>
+              <th>PM2.5 мкг/м³</th>
+              <th>PM10 мкг/м³</th>
+              <th>Вологість %</th>
+              <th>Тиск мм.рт.ст.</th>
+              <th>Темп. °C</th>
+              <th>Статус PM2.5</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      <span>Лабораторна робота №4 · Мудрий В.О. · ШІР-25002м · НУБіП України</span>
+      <span>Дисципліна: Аналітичні системи моніторингу довкілля · 2026</span>
+    </footer>
+  </div>
+
+  <script>
+    // ── DATA (from Lab 2) ──────────────────────────────────────────────────────
+    const data = [
+      { date: '14.02', pm25: 20.15, pm10: 21.30, hum: 87, pres: 772, temp: -17.5 },
+      { date: '15.02', pm25: 16.90, pm10: 17.80, hum: 91, pres: 774, temp: -21.0 },
+      { date: '16.02', pm25: 18.20, pm10: 19.50, hum: 89, pres: 772, temp: -18.7 },
+      { date: '17.02', pm25: 25.40, pm10: 26.80, hum: 82, pres: 768, temp: -12.4 },
+      { date: '18.02', pm25: 23.10, pm10: 24.20, hum: 85, pres: 769, temp: -15.2 },
+      { date: '19.02', pm25: 19.85, pm10: 20.45, hum: 88, pres: 771, temp: -19.5 },
+      { date: '20.02', pm25: 21.52, pm10: 22.38, hum: 90, pres: 773, temp: -22.3 },
+    ];
+    const labels = data.map(d => d.date);
+    const WHO_PM25 = 25;
+
+    // ── moving average forecast ─────────────────────────────────────────────────
+    function movingAvg(arr, w = 3) {
+      return arr.map((_, i) => {
+        if (i < w - 1) return null;
+        const s = arr.slice(i - w + 1, i + 1).reduce((a, b) => a + b, 0);
+        return +(s / w).toFixed(2);
+      });
+    }
+    const forecast = movingAvg(data.map(d => d.pm25));
+    // project 2 more days
+    const last3 = data.slice(-3).map(d => d.pm25);
+    const f21 = +(last3.reduce((a, b) => a + b, 0) / 3).toFixed(2);
+    const f22 = +([last3[1], last3[2], f21].reduce((a, b) => a + b, 0) / 3).toFixed(2);
+
+    // ── Chart defaults ──────────────────────────────────────────────────────────
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+    Chart.defaults.font.size = 11;
+
+    const gridColor = 'rgba(255,255,255,0.05)';
+
+    // ── 1. Dust line chart ──────────────────────────────────────────────────────
+    new Chart(document.getElementById('dustChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'PM2.5', data: data.map(d => d.pm25),
+            borderColor: '#00d4aa', backgroundColor: 'rgba(0,212,170,0.1)',
+            borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+            pointBackgroundColor: '#00d4aa', tension: 0.35, fill: true,
+          },
+          {
+            label: 'PM10', data: data.map(d => d.pm10),
+            borderColor: '#7c6fff', backgroundColor: 'rgba(124,111,255,0.07)',
+            borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+            pointBackgroundColor: '#7c6fff', tension: 0.35, fill: true,
+          },
+          {
+            label: 'Норма ВООЗ (PM2.5)', data: Array(7).fill(WHO_PM25),
+            borderColor: 'rgba(255,107,53,0.6)', borderDash: [6, 4],
+            borderWidth: 1.5, pointRadius: 0, fill: false,
+          },
+          {
+            label: 'Прогноз PM2.5 (MA)', data: forecast,
+            borderColor: 'rgba(0,212,170,0.4)', borderDash: [4, 3],
+            borderWidth: 1.5, pointRadius: 3, fill: false,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
+        scales: {
+          x: { grid: { color: gridColor } },
+          y: {
+            grid: { color: gridColor }, min: 14, max: 30,
+            title: { display: true, text: 'мкг/м³', color: '#64748b' }
+          }
+        }
+      }
+    });
+
+    // ── 2. Doughnut gauge ──────────────────────────────────────────────────────
+    const lastPM25 = data[data.length - 1].pm25;
+    new Chart(document.getElementById('gaugeChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['PM2.5 (факт)', 'Залишок до норми'],
+        datasets: [{
+          data: [lastPM25, Math.max(0, WHO_PM25 - lastPM25)],
+          backgroundColor: ['#00d4aa', 'rgba(255,255,255,0.05)'],
+          borderColor: ['#00d4aa', 'transparent'],
+          borderWidth: [2, 0],
+        }]
+      },
+      options: {
+        cutout: '72%',
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataIndex === 0
+                ? ` ${ctx.parsed.toFixed(2)} мкг/м³ (${(ctx.parsed / WHO_PM25 * 100).toFixed(0)}% від норми)`
+                : ` ${ctx.parsed.toFixed(2)} мкг/м³ запас`
+            }
+          }
+        }
+      }
+    });
+
+    // ── 3. Meteo (humidity + pressure) ─────────────────────────────────────────
+    new Chart(document.getElementById('meteoChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Вологість %', data: data.map(d => d.hum),
+            backgroundColor: 'rgba(6,182,212,0.7)', borderRadius: 4, yAxisID: 'y1',
+          },
+          {
+            label: 'Тиск мм.рт.ст.', data: data.map(d => d.pres),
+            type: 'line', borderColor: '#f59e0b', borderWidth: 2,
+            pointRadius: 4, pointBackgroundColor: '#f59e0b',
+            tension: 0.3, fill: false, yAxisID: 'y2',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { boxWidth: 10, padding: 10 } } },
+        scales: {
+          x: { grid: { color: gridColor } },
+          y1: {
+            grid: { color: gridColor }, min: 75, max: 95, position: 'left',
+            title: { display: true, text: '%', color: '#06b6d4' }
+          },
+          y2: {
+            grid: { display: false }, min: 764, max: 778, position: 'right',
+            title: { display: true, text: 'мм.рт.ст.', color: '#f59e0b' }
+          },
+        }
+      }
+    });
+
+    // ── 4. Temperature ──────────────────────────────────────────────────────────
+    new Chart(document.getElementById('tempChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Температура °C', data: data.map(d => d.temp),
+          borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.12)',
+          borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#60a5fa',
+          tension: 0.35, fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { boxWidth: 10 } } },
+        scales: {
+          x: { grid: { color: gridColor } },
+          y: {
+            grid: { color: gridColor },
+            title: { display: true, text: '°C', color: '#60a5fa' }
+          }
+        }
+      }
+    });
+
+    // ── 5. Forecast list ────────────────────────────────────────────────────────
+    const forecastData = [
+      ...data.map((d, i) => ({ date: d.date, val: forecast[i], type: 'fact' })),
+      { date: '21.02', val: f21, type: 'pred' },
+      { date: '22.02', val: f22, type: 'pred' },
+    ].filter(f => f.val !== null);
+
+    const maxVal = Math.max(...forecastData.map(f => f.val));
+    const container = document.getElementById('forecastList');
+    forecastData.forEach(f => {
+      const pct = (f.val / maxVal * 100).toFixed(1);
+      container.innerHTML += `
+    <div class="forecast-row">
+      <span class="forecast-date">${f.date}</span>
+      <div class="forecast-bar-wrap">
+        <div class="forecast-bar-inner" style="width:${pct}%;opacity:${f.type === 'pred' ? 0.5 : 1}"></div>
+      </div>
+      <span class="forecast-val" style="color:${f.type === 'pred' ? '#7c6fff' : 'var(--accent)'}">${f.val}</span>
+    </div>`;
+    });
+    container.innerHTML += `<div style="font-size:11px;color:var(--muted);margin-top:8px;font-family:'IBM Plex Mono',monospace">-- прогноз (MA-3)</div>`;
+
+    // ── 6. Table ────────────────────────────────────────────────────────────────
+    const tbody = document.getElementById('tableBody');
+    [...data].reverse().forEach(r => {
+      const isWarn = r.pm25 >= 20;
+      tbody.innerHTML += `
+    <tr>
+      <td style="font-family:'IBM Plex Mono',monospace;font-weight:600">${r.date}</td>
+      <td style="color:var(--muted)">10:00</td>
+      <td style="color:${r.pm25 >= WHO_PM25 ? 'var(--danger)' : r.pm25 >= 20 ? 'var(--warn)' : '#4ade80'};font-weight:600;font-family:'IBM Plex Mono',monospace">${r.pm25}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${r.pm10}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${r.hum}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${r.pres}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:#60a5fa">${r.temp}</td>
+      <td><span class="badge ${isWarn ? 'badge-warn' : 'badge-ok'}">${r.pm25 >= WHO_PM25 ? 'КРИТИЧНО' : r.pm25 >= 20 ? 'Увага' : 'Норма'}</span></td>
+    </tr>`;
+    });
+  </script>
+</body>
+
+</html>
